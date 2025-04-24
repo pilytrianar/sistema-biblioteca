@@ -1,8 +1,9 @@
+from arbol_libros import NodoLibro, ArbolLibros
 import tkinter as tk
 from tkinter import messagebox
 
 usuarios = []
-libros = []
+arbol = ArbolLibros()
 prestamos = []
 
 def registrar_usuario():
@@ -68,13 +69,8 @@ def registrar_libro():
         categoria = entry_categoria.get()
 
         if id_libro and titulo and autor and categoria:
-            libros.append({
-                "id": id_libro,
-                "titulo": titulo,
-                "autor": autor,
-                "categoria": categoria,
-                "disponible": True
-            })
+            nuevo = NodoLibro(id_libro, titulo, autor, categoria)
+            arbol.raiz = arbol.insertar(arbol.raiz, nuevo)
             messagebox.showinfo("Éxito", "Libro registrado con éxito")
             ventana_libro.destroy()
         else:
@@ -83,7 +79,7 @@ def registrar_libro():
     tk.Button(ventana_libro, text="Guardar", command=guardar_libro).pack(pady=10)
 
 def prestar_libro():
-    if not usuarios or not libros:
+    if not usuarios or not arbol.raiz:
         messagebox.showwarning("Error", "Debe haber al menos un usuario y un libro")
         return
 
@@ -97,11 +93,12 @@ def prestar_libro():
     usuario_var.set(opciones_usuarios[0])
     tk.OptionMenu(ventana_prestamo, usuario_var, *opciones_usuarios).pack()
 
-    tk.Label(ventana_prestamo, text="Selecciona Libro:").pack(pady=5)
-    libros_disponibles = [l["titulo"] for l in libros if l["disponible"]]
+    libros_disponibles = [l.titulo for l in arbol.recorrer_inorden(arbol.raiz, []) if l.disponible]
     if not libros_disponibles:
         tk.Label(ventana_prestamo, text="(No hay libros disponibles)").pack()
         return
+
+    tk.Label(ventana_prestamo, text="Selecciona Libro:").pack(pady=5)
     libro_var = tk.StringVar(ventana_prestamo)
     libro_var.set(libros_disponibles[0])
     tk.OptionMenu(ventana_prestamo, libro_var, *libros_disponibles).pack()
@@ -110,9 +107,9 @@ def prestar_libro():
         usuario = usuario_var.get()
         libro_titulo = libro_var.get()
 
-        for libro in libros:
-            if libro["titulo"] == libro_titulo and libro["disponible"]:
-                libro["disponible"] = False
+        for libro in arbol.recorrer_inorden(arbol.raiz, []):
+            if libro.titulo == libro_titulo and libro.disponible:
+                libro.disponible = False
                 prestamos.append({
                     "usuario": usuario,
                     "libro": libro_titulo
@@ -144,9 +141,9 @@ def devolver_libro():
         seleccionado = prestamo_var.get()
         for prestamo in prestamos:
             if f"{prestamo['libro']} ← {prestamo['usuario']}" == seleccionado:
-                for libro in libros:
-                    if libro["titulo"] == prestamo["libro"]:
-                        libro["disponible"] = True
+                for libro in arbol.recorrer_inorden(arbol.raiz, []):
+                    if libro.titulo == prestamo["libro"]:
+                        libro.disponible = True
                         break
                 prestamos.remove(prestamo)
                 messagebox.showinfo("Éxito", "Libro devuelto con éxito")
@@ -156,6 +153,7 @@ def devolver_libro():
     tk.Button(ventana_devolver, text="Confirmar Devolución", command=confirmar_devolucion).pack(pady=10)
 
 def ver_catalogo():
+    libros = arbol.recorrer_inorden(arbol.raiz, [])
     if not libros:
         messagebox.showinfo("Info", "No hay libros registrados.")
         return
@@ -165,11 +163,10 @@ def ver_catalogo():
     ventana_catalogo.geometry("400x300")
 
     for libro in libros:
-        estado = "Disponible" if libro["disponible"] else "Prestado"
-        info = f"{libro['titulo']} - {libro['autor']} ({libro['categoria']}) - [{estado}]"
+        estado = "Disponible" if libro.disponible else "Prestado"
+        info = f"{libro.titulo} - {libro.autor} ({libro.categoria}) - [{estado}]"
         tk.Label(ventana_catalogo, text=info).pack(anchor="w")
 
-# Ventana principal
 ventana = tk.Tk()
 ventana.title("Sistema de Gestión de Biblioteca")
 ventana.geometry("400x550")
